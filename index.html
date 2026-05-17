@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Generator</title>
+<style>
+body{
+    margin:0;
+    font-family:system-ui;
+    background:#0b0b0b;
+    color:#fff;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow-x:hidden;
+}
+.wrapper{
+    width:100%;
+    max-width:760px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    padding:20px;
+    box-sizing:border-box;
+}
+.output{
+    width:100%;
+    max-width:520px;
+    min-height:180px;
+    text-align:left;
+}
+.card{
+    width:100%;
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.line{
+    margin:4px 0;
+    line-height:1.45;
+    font-size:14px;
+    word-break:break-all;
+}
+.label{
+    color:#6f6f6f;
+}
+.value{
+    color:#fff;
+}
+.topbar{
+    position:fixed;
+    bottom:25px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:18px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+button{
+    background:none;
+    border:none;
+    color:#fff;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:500;
+    letter-spacing:.3px;
+}
+button:hover{
+    opacity:.7;
+}
+input[type="number"]{
+    width:42px;
+    background:none;
+    border:none;
+    color:#fff;
+    text-align:center;
+    font-size:14px;
+    outline:none;
+}
+label{
+    font-size:13px;
+    color:#9a9a9a;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+}
+input[type="checkbox"]{
+    accent-color:#fff;
+}
+.notice{
+    position:fixed;
+    top:18px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:12px;
+    color:#888;
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
+}
+.password{
+    font-family:monospace;
+    font-size:16px;
+    letter-spacing:1px;
+}
+</style>
+</head>
+<body>
+
+<div class="notice" id="notice">copied</div>
+
+<div class="wrapper">
+    <div class="output" id="output"></div>
+</div>
+
+<div class="topbar">
+    <button onclick="generatePassword()">generate</button>
+    <button onclick="copyPassword()">copy</button>
+    <button onclick="clearPassword()">clear</button>
+
+    <input id="lengthInput" type="number" value="16" min="4" max="64">
+
+    <label><input type="checkbox" id="upper" checked>ABC</label>
+    <label><input type="checkbox" id="lower" checked>abc</label>
+    <label><input type="checkbox" id="numbers" checked>123</label>
+    <label><input type="checkbox" id="symbols">#$%</label>
+</div>
+
+<script>
+const output = document.getElementById("output");
+const notice = document.getElementById("notice");
+let currentPassword = "";
+
+function showNotice(text){
+    notice.textContent = text;
+    notice.style.opacity = 1;
+    setTimeout(() => notice.style.opacity = 0, 1200);
+}
+
+function generatePassword(){
+    const length = Math.max(4, Math.min(64, parseInt(document.getElementById("lengthInput").value) || 16));
+
+    const upper = document.getElementById("upper").checked;
+    const lower = document.getElementById("lower").checked;
+    const numbers = document.getElementById("numbers").checked;
+    const symbols = document.getElementById("symbols").checked;
+
+    let chars = "";
+
+    if(upper) chars += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if(lower) chars += "abcdefghijklmnopqrstuvwxyz";
+    if(numbers) chars += "0123456789";
+    if(symbols) chars += "!@#$%^&*()_+-={}[]<>?/";
+
+    if(chars.length === 0){
+        chars = "abcdefghijklmnopqrstuvwxyz";
+    }
+
+    let password = "";
+    const cryptoObj = window.crypto || window.msCrypto;
+    const randomValues = new Uint32Array(length);
+    cryptoObj.getRandomValues(randomValues);
+
+    for(let i=0; i<length; i++){
+        password += chars[randomValues[i] % chars.length];
+    }
+
+    currentPassword = password;
+    render(password, length, upper, lower, numbers, symbols);
+}
+
+function render(password, length, upper, lower, numbers, symbols){
+  output.innerHTML = `
+        <div class="card">
+            <div class="line"><span class="label">Password:</span> <span class="value password">${password}</span></div>
+            <div class="line"><span class="label">Length:</span> <span class="value">${length}</span></div>
+            <div class="line"><span class="label">Uppercase:</span> <span class="value">${upper ? "yes" : "no"}</span></div>
+            <div class="line"><span class="label">Lowercase:</span> <span class="value">${lower ? "yes" : "no"}</span></div>
+            <div class="line"><span class="label">Numbers:</span> <span class="value">${numbers ? "yes" : "no"}</span></div>
+            <div class="line"><span class="label">Symbols:</span> <span class="value">${symbols ? "yes" : "no"}</span></div>
+        </div>
+    `;
+}
+
+function copyPassword(){
+    if(!currentPassword) return;
+    navigator.clipboard.writeText(currentPassword);
+    showNotice("password copied");
+}
+
+function clearPassword(){
+    output.innerHTML = "";
+    currentPassword = "";
+}
+
+window.onload = generatePassword;
+</script>
+</body>
+</html>
