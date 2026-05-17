@@ -132,6 +132,17 @@ label{
     vertical-align:middle;
     animation:blink .9s infinite;
 }
+.copySingle{
+    font-size:11px;
+    color:#777;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+    padding-top:6px;
+}
+.copySingle:hover{
+    color:#fff;
+}
 @keyframes blink{
     0%{opacity:0;}
     50%{opacity:1;}
@@ -140,7 +151,6 @@ label{
 </style>
 </head>
 <body>
-
 <div class="notice" id="notice">copied</div>
 
 <div class="wrapper">
@@ -174,15 +184,14 @@ label{
 const output = document.getElementById("output");
 const notice = document.getElementById("notice");
 const loader = document.getElementById("loader");
-let currentPassword = "";
+let currentPassword = [];
 
 function showNotice(text){
     notice.textContent = text;
     notice.style.opacity = 1;
     setTimeout(() => notice.style.opacity = 0, 1200);
 }
-
-function createPassword(){
+    function createPassword(){
     const length = Math.max(4, Math.min(200, parseInt(document.getElementById("lengthInput").value) || 16));
     const count = parseInt(document.getElementById("countSelect").value);
 
@@ -196,7 +205,6 @@ function createPassword(){
     if(lower) chars += "abcdefghijklmnopqrstuvwxyz";
     if(numbers) chars += "0123456789";
     if(symbols) chars += "!@#$%^&*()_+-={}[]<>?/";
-
     if(chars.length === 0) chars = "abcdefghijklmnopqrstuvwxyz";
 
     const passwords = [];
@@ -215,19 +223,31 @@ function createPassword(){
     return passwords;
 }
 
+function copySingle(password){
+    navigator.clipboard.writeText(password);
+    showNotice("password copied");
+}
+
 function typePasswords(passwords){
     output.innerHTML = "";
 
     passwords.forEach((password,index)=>{
         const card = document.createElement("div");
         card.className = "card";
+
         card.innerHTML = `
-            <div class="line">
-                <span class="label">Password:</span>
-                <span class="value password" id="p${index}"></span>
-                <span class="typingCursor" id="c${index}"></span>
+            <div class="line" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <div style="flex:1;cursor:pointer;" onclick="copySingle('${password.replace(/'/g,"\\'")}')">
+                    <span class="label">Password:</span>
+                    <span class="value password" id="p${index}"></span>
+                    <span class="typingCursor" id="c${index}"></span>
+                </div>
+                <div class="copySingle" onclick="copySingle('${password.replace(/'/g,"\\'")}')">
+                    copy
+                </div>
             </div>
         `;
+
         output.appendChild(card);
 
         const target = document.getElementById(`p${index}`);
@@ -254,21 +274,21 @@ function generatePasswords(){
 
     setTimeout(()=>{
         const passwords = createPassword();
-        currentPassword = passwords[0];
+        currentPassword = passwords;
         loader.style.display = "none";
         typePasswords(passwords);
     }, 320);
 }
 
 function copyPassword(){
-    if(!currentPassword) return;
-    navigator.clipboard.writeText(currentPassword);
-    showNotice("copied");
+    if(!currentPassword.length) return;
+    navigator.clipboard.writeText(currentPassword.join("\n"));
+    showNotice("all copied");
 }
 
 function clearPassword(){
     output.innerHTML = "";
-    currentPassword = "";
+    currentPassword = [];
     loader.style.display = "block";
 }
 
