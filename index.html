@@ -26,22 +26,22 @@ body{
     min-height:100vh;
     padding:20px;
     box-sizing:border-box;
+    position:relative;
 }
 .output{
     width:100%;
-    max-width:520px;
-    min-height:180px;
+    max-width:580px;
     text-align:left;
 }
 .card{
     width:100%;
-    padding:10px 0;
+    padding:12px 0;
     border-bottom:1px solid rgba(255,255,255,0.05);
 }
 .line{
-    margin:4px 0;
-    line-height:1.45;
-    font-size:14px;
+    margin:6px 0;
+    line-height:1.5;
+    font-size:18px;
     word-break:break-all;
 }
 .label{
@@ -49,6 +49,30 @@ body{
 }
 .value{
     color:#fff;
+}
+.password{
+    font-family:monospace;
+    font-size:21px;
+    letter-spacing:1px;
+}
+.strength{
+    font-size:13px;
+    color:#8a8a8a;
+    margin-top:4px;
+}
+.loader{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -120px);
+    font-family:monospace;
+    font-size:11px;
+    letter-spacing:4px;
+    color:#7a7a7a;
+    opacity:.72;
+    pointer-events:none;
+    text-transform:uppercase;
+    user-select:none;
 }
 .topbar{
     position:fixed;
@@ -68,13 +92,12 @@ button{
     cursor:pointer;
     font-size:14px;
     font-weight:500;
-    letter-spacing:.3px;
 }
 button:hover{
     opacity:.7;
 }
 input[type="number"]{
-    width:42px;
+    width:50px;
     background:none;
     border:none;
     color:#fff;
@@ -102,12 +125,41 @@ input[type="checkbox"]{
     color:#888;
     opacity:0;
     transition:.25s;
-    pointer-events:none;
 }
-.password{
-    font-family:monospace;
-    font-size:16px;
-    letter-spacing:1px;
+.typingCursor{
+    display:inline-block;
+    width:1px;
+    height:18px;
+    background:#888;
+    margin-left:4px;
+    vertical-align:middle;
+    animation:blink .9s infinite;
+}
+.hint{
+    margin-top:25px;
+    font-size:12px;
+    color:#666;
+    text-align:center;
+}
+.links{
+    margin-top:25px;
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    justify-content:center;
+    font-size:12px;
+}
+.links span{
+    color:#777;
+    cursor:pointer;
+}
+.links span:hover{
+    color:#fff;
+}
+@keyframes blink{
+    0%{opacity:0;}
+    50%{opacity:1;}
+    100%{opacity:0;}
 }
 </style>
 </head>
@@ -116,15 +168,29 @@ input[type="checkbox"]{
 <div class="notice" id="notice">copied</div>
 
 <div class="wrapper">
+    <div class="loader" id="loader">
+        INITIALIZING<span class="typingCursor"></span>
+    </div>
+
     <div class="output" id="output"></div>
+
+    <div class="hint">
+        Click generate to create secure random passwords
+    </div>
+
+    <div class="links">
+        <span>Fake User Generator</span>
+        <span>UUID Generator</span>
+        <span>Username Generator</span>
+    </div>
 </div>
 
 <div class="topbar">
-    <button onclick="generatePassword()">generate</button>
+    <button onclick="generatePasswords()">generate</button>
     <button onclick="copyPassword()">copy</button>
     <button onclick="clearPassword()">clear</button>
 
-    <input id="lengthInput" type="number" value="16" min="4" max="64">
+    <input id="lengthInput" type="number" value="16" min="4" max="200">
 
     <label><input type="checkbox" id="upper" checked>ABC</label>
     <label><input type="checkbox" id="lower" checked>abc</label>
@@ -135,16 +201,29 @@ input[type="checkbox"]{
 <script>
 const output = document.getElementById("output");
 const notice = document.getElementById("notice");
+const loader = document.getElementById("loader");
 let currentPassword = "";
-
-function showNotice(text){
+    function showNotice(text){
     notice.textContent = text;
     notice.style.opacity = 1;
     setTimeout(() => notice.style.opacity = 0, 1200);
 }
 
-function generatePassword(){
-    const length = Math.max(4, Math.min(64, parseInt(document.getElementById("lengthInput").value) || 16));
+function getStrength(password){
+    let score = 0;
+    if(password.length >= 12) score++;
+    if(password.length >= 20) score++;
+    if(/[A-Z]/.test(password)) score++;
+    if(/[0-9]/.test(password)) score++;
+    if(/[^A-Za-z0-9]/.test(password)) score++;
+
+    if(score <= 2) return "weak";
+    if(score <= 4) return "medium";
+    return "strong";
+}
+
+function createPassword(){
+    const length = Math.max(4, Math.min(200, parseInt(document.getElementById("lengthInput").value) || 16));
 
     const upper = document.getElementById("upper").checked;
     const lower = document.getElementById("lower").checked;
@@ -152,7 +231,6 @@ function generatePassword(){
     const symbols = document.getElementById("symbols").checked;
 
     let chars = "";
-
     if(upper) chars += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     if(lower) chars += "abcdefghijklmnopqrstuvwxyz";
     if(numbers) chars += "0123456789";
@@ -162,44 +240,82 @@ function generatePassword(){
         chars = "abcdefghijklmnopqrstuvwxyz";
     }
 
-    let password = "";
-    const cryptoObj = window.crypto || window.msCrypto;
     const randomValues = new Uint32Array(length);
-    cryptoObj.getRandomValues(randomValues);
+    crypto.getRandomValues(randomValues);
 
-    for(let i=0; i<length; i++){
+    let password = "";
+    for(let i=0;i<length;i++){
         password += chars[randomValues[i] % chars.length];
     }
 
-    currentPassword = password;
-    render(password, length, upper, lower, numbers, symbols);
+    return password;
 }
 
-function render(password, length, upper, lower, numbers, symbols){
-  output.innerHTML = `
-        <div class="card">
-            <div class="line"><span class="label">Password:</span> <span class="value password">${password}</span></div>
-            <div class="line"><span class="label">Length:</span> <span class="value">${length}</span></div>
-            <div class="line"><span class="label">Uppercase:</span> <span class="value">${upper ? "yes" : "no"}</span></div>
-            <div class="line"><span class="label">Lowercase:</span> <span class="value">${lower ? "yes" : "no"}</span></div>
-            <div class="line"><span class="label">Numbers:</span> <span class="value">${numbers ? "yes" : "no"}</span></div>
-            <div class="line"><span class="label">Symbols:</span> <span class="value">${symbols ? "yes" : "no"}</span></div>
-        </div>
-    `;
+function typePasswords(passwords){
+    output.innerHTML = "";
+
+    passwords.forEach((password,index)=>{
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+            <div class="line">
+                <span class="label">Password ${index+1}:</span>
+                <span class="value password" id="p${index}"></span>
+                <span class="typingCursor" id="c${index}"></span>
+            </div>
+            <div class="strength">Strength: ${getStrength(password)}</div>
+        `;
+        output.appendChild(card);
+
+        const target = document.getElementById(`p${index}`);
+        const cursor = document.getElementById(`c${index}`);
+
+        let i = 0;
+        function typeChar(){
+            if(i < password.length){
+                target.textContent += password[i];
+                i++;
+                setTimeout(typeChar, 12);
+            } else {
+                cursor.remove();
+            }
+        }
+
+        setTimeout(typeChar, index * 250);
+    });
+}
+
+function generatePasswords(){
+    loader.style.display = "block";
+    output.innerHTML = "";
+
+    setTimeout(()=>{
+        const passwords = [
+            createPassword(),
+            createPassword(),
+            createPassword()
+        ];
+
+        currentPassword = passwords[0];
+        loader.style.display = "none";
+        typePasswords(passwords);
+    }, 350);
 }
 
 function copyPassword(){
     if(!currentPassword) return;
     navigator.clipboard.writeText(currentPassword);
-    showNotice("password copied");
+    showNotice("copied");
 }
 
 function clearPassword(){
     output.innerHTML = "";
     currentPassword = "";
+    loader.style.display = "block";
 }
 
-window.onload = generatePassword;
+window.onload = generatePasswords;
 </script>
+
 </body>
 </html>
